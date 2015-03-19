@@ -1,35 +1,40 @@
 class ScheduleChainsController < ApplicationController
-	before_filter :authenticate_volunteer!
-	before_filter :admin_only, :only => [:fast_schedule, :today, :tomorrow, :yesterday, :edit, :update, :create, :new]
+  before_filter :authenticate_volunteer!
+  before_filter :admin_only, :only => [:fast_schedule, :today, :tomorrow, :yesterday, :edit, :update, :create, :new]
 
-	def open
-		@schedules = ScheduleChain.open_in_regions current_volunteer.region_ids
-		@my_admin_regions = current_volunteer.admin_regions
-		@page_title = "Open Shifts"
-		render :index
-	end
+  def open
+    @schedules = ScheduleChain.open_in_regions current_volunteer.region_ids
+    @my_admin_regions = current_volunteer.admin_regions
+    @page_title = "Open Shifts"
+    respond_to do |format|
+      format.json { render json: @schedules }
+      format.html { render :index }
+    end
+  end
 
-	def mine
-		@schedules = current_volunteer.schedule_chains
-		@my_admin_regions = current_volunteer.admin_regions
-		@page_title = "My Regular Shifts"
-		render :index
-	end
+  def mine
+    @schedules = current_volunteer.schedule_chains
+    @my_admin_regions = current_volunteer.admin_regions
+    @page_title = "My Regular Shifts"
+    respond_to do |format|
+      format.json { render json: @schedules }
+      format.html { render :index }
+    end
+  end
 
-	def index(title='Full Schedule', day_of_week=nil)
-		#trinary operator was causing syntax errors
-		if day_of_week.nil?
-			dowq=""
-		else
-			dowq="day_of_week = #{day_of_week.to_i}"
-		end
-		@schedules = ScheduleChain.where(:region_id => current_volunteer.region_ids).where(dowq)
-		@my_admin_regions = current_volunteer.admin_regions
-		@page_title = title
-		render :index
-	end
+  def index(title='Full Schedule', day_of_week=nil)
+    #trinary operator was causing syntax errors
+    dowq = (day_of_week.nil?) ? "" : "day_of_week = #{day_of_week.to_i}"
+    @schedules = ScheduleChain.where(:region_id => current_volunteer.region_ids).where(dowq)
+    @my_admin_regions = current_volunteer.admin_regions
+    @page_title = title
+    respond_to do |format|
+      format.json { render json: @schedules }
+      format.html { render :index }
+    end
+  end
 
-	def show
+  def show
     @schedule = ScheduleChain.find(params[:id])
     #prep the google maps embed request
     api_key = 'AIzaSyD8c6OCF67BCrCMbgBNrcdEEuDnCNqWlk4'
@@ -48,14 +53,14 @@ class ScheduleChainsController < ApplicationController
     end
     embed_parameters += '&mode=bicycling'
     @embed_request_url = ('https://www.google.com/maps/embed/v1/directions' + '?key=' + api_key + embed_parameters)
-		if params[:nolayout].present? and params[:nolayout].to_i == 1
-			render(:show,:layout => false)
-		else
-			render :show
-		end
-	end
+    if params[:nolayout].present? and params[:nolayout].to_i == 1
+      render(:show,:layout => false)
+    else
+      render :show
+    end
+  end
 
-	def today
+  def today
     index("Today's Schedule",Time.zone.today.wday)
   end
   def tomorrow
@@ -67,7 +72,7 @@ class ScheduleChainsController < ApplicationController
     index("Yesterday's Schedule",day_of_week)
   end
 
-	def destroy
+  def destroy
     @s = ScheduleChain.find(params[:id])
     unless current_volunteer.any_admin? @s.region
       flash[:error] = "Not authorized to delete schedule items for that region"
@@ -79,7 +84,7 @@ class ScheduleChainsController < ApplicationController
     redirect_to(request.referrer)
   end
 
-	def new
+  def new
     @region = Region.find(params[:region_id])
     unless current_volunteer.any_admin? @region
       flash[:error] = "Not authorized to create schedule items for that region"
@@ -152,7 +157,7 @@ class ScheduleChainsController < ApplicationController
     end
   end
 
-	def leave
+  def leave
     schedule = ScheduleChain.find(params[:id])
     if current_volunteer.in_region? schedule.region_id
       if schedule.has_volunteer? current_volunteer
